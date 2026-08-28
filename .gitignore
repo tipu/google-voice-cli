@@ -1,0 +1,36 @@
+# Dependencies, test output, and logs
+node_modules/
+coverage/
+.nyc_output/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment and tool configuration
+.env
+.env.*
+!.env.example
+.agents/
+.codex/
+.idea/
+.vscode/
+.DS_Store
+
+# Google/Chrome session data. These directories may contain live cookies.
+.gvoice-profile/
+.google-voice-profile/
+.chrome-profile/
+chrome-profile/
+user-data-dir/
+
+# Credential and authentication exports
+credentials*.json
+client_secret*.json
+cookies*.json
+storage-state*.json
+auth-state*.json
+*.pem
+*.key
+*.p12
+*.pfx

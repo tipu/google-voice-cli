@@ -1,0 +1,36 @@
+{
+  "name": "google-voice-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local, interactive CLI companion for the Google Voice web app",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tipu/google-voice-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tipu/google-voice-cli/issues"
+  },
+  "homepage": "https://github.com/tipu/google-voice-cli#readme",
+  "keywords": [
+    "cli",
+    "google-voice",
+    "read-only"
+  ],
+  "type": "module",
+  "bin": {
+    "gvoice": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/browser.js && node --check src/cli.js && node --check src/config.js && node --check src/duration.js && node --check src/output.js && node --check src/voice.js",
+    "ci": "npm run check && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "playwright-core": "^1.62.1"
+  }
+}
