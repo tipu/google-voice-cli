@@ -109,6 +109,7 @@ export async function extractRecentMessages(
     },
     { timeout: 15_000 },
   );
+  responsePromise.catch(() => {});
   await navigateToMessages(page);
   const payload = await (await responsePromise).json();
 
