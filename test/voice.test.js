@@ -5,6 +5,7 @@ import {
   AuthenticationRequiredError,
   decodeRecentMessages,
   extractRecentMessages,
+  firstThreadPageSize,
   isVoiceAppUrl,
   messagesUrl,
 } from "../src/voice.js";
@@ -87,4 +88,46 @@ test("extractRecentMessages reports the navigation error when the browser closes
   } finally {
     process.off("unhandledRejection", onUnhandled);
   }
+});
+
+test("firstThreadPageSize matches the first text-thread page at any page size", () => {
+  assert.equal(firstThreadPageSize([2, 20, 15, null, null, [null, 1, 1, 1]]), 20);
+  assert.equal(firstThreadPageSize([2, 100, 15, null, null, [null, 1, 1, 1]]), 100);
+  assert.equal(firstThreadPageSize([2, 20, 15, "1790962205630", null, [null, 1, 1, 1]]), null);
+  assert.equal(firstThreadPageSize([1, 20, 15, null, null, [null, 1, 1, 1]]), null);
+  assert.equal(firstThreadPageSize(null), null);
+});
+
+test("extractRecentMessages reads a 20-thread first page and flags the truncated source", async () => {
+  const now = Date.parse("2026-10-06T20:00:00.000Z");
+  const threads = Array.from({ length: 20 }, (_, index) => [
+    `t${index}`,
+    null,
+    [[`m${index}`, now - (index + 1) * 60_000, null, null, 10, null, null, null, null, `hello ${index}`]],
+  ]);
+  const page = {
+    evaluate: async () => threads.map((_, index) => `Person ${index}`),
+    goto: async () => {},
+    url: () => "https://voice.google.com/u/0/messages",
+    waitForLoadState: async () => {},
+    waitForResponse: async (predicate) => {
+      const responses = [
+        [1, 20, 15, null, null, [null, 1, 1, 1]],
+        [2, 20, 15, null, null, [null, 1, 1, 1]],
+      ].map((body) => ({
+        json: async () => [threads],
+        request: () => ({ postDataJSON: () => body }),
+        url: () => "https://clients6.google.com/voice/v1/voiceclient/api2thread/list?alt=protojson",
+      }));
+      const match = responses.find(predicate);
+      assert.deepEqual(match.request().postDataJSON()[0], 2);
+      return match;
+    },
+  };
+
+  const result = await extractRecentMessages(page, { now, sinceMs: 24 * 60 * 60_000 });
+
+  assert.equal(result.count, 20);
+  assert.equal(result.messages[0].participant, "Person 0");
+  assert.equal(result.sourceTruncated, true);
 });

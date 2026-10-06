@@ -101,8 +101,7 @@ export async function extractRecentMessages(
     (response) => {
       if (!response.url().includes("/voice/v1/voiceclient/api2thread/list")) return false;
       try {
-        const request = response.request().postDataJSON();
-        return request?.[0] === 2 && request?.[1] === 100;
+        return firstThreadPageSize(response.request().postDataJSON()) !== null;
       } catch {
         return false;
       }
@@ -111,7 +110,9 @@ export async function extractRecentMessages(
   );
   responsePromise.catch(() => {});
   await navigateToMessages(page);
-  const payload = await (await responsePromise).json();
+  const response = await responsePromise;
+  const pageSize = firstThreadPageSize(response.request().postDataJSON());
+  const payload = await response.json();
 
   const participants = await page.evaluate((itemSelector) => {
     const clean = (value) => value?.replace(/\s+/g, " ").trim() || null;
@@ -124,14 +125,20 @@ export async function extractRecentMessages(
     incomingOnly,
     limit,
     now,
+    pageSize,
     sinceMs,
   });
+}
+
+export function firstThreadPageSize(request) {
+  if (!Array.isArray(request) || request[0] !== 2 || request[3] != null) return null;
+  return Number.isInteger(request[1]) && request[1] > 0 ? request[1] : null;
 }
 
 export function decodeRecentMessages(
   payload,
   participants,
-  { incomingOnly = false, limit = 100, now = Date.now(), sinceMs },
+  { incomingOnly = false, limit = 100, now = Date.now(), pageSize = 100, sinceMs },
 ) {
   const cutoffMs = now - sinceMs;
   const rawThreads = Array.isArray(payload?.[0]) ? payload[0] : [];
@@ -174,7 +181,7 @@ export function decodeRecentMessages(
     generatedAt: new Date(now).toISOString(),
     messages: selected,
     sourceTruncated:
-      rawThreads.length >= 100 &&
+      rawThreads.length >= pageSize &&
       Number.isFinite(oldestLoadedThread) &&
       oldestLoadedThread >= cutoffMs,
     truncated: messages.length > selected.length,
