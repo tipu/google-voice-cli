@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  AuthenticationRequiredError,
   decodeRecentMessages,
+  extractRecentMessages,
   isVoiceAppUrl,
   messagesUrl,
 } from "../src/voice.js";
@@ -57,4 +59,32 @@ test("decodeRecentMessages filters by exact timestamp and direction", () => {
     thread: 1,
     timestamp: "2026-08-28T11:50:00.000Z",
   });
+});
+
+test("extractRecentMessages reports the navigation error when the browser closes", async () => {
+  const unhandled = [];
+  const onUnhandled = (reason) => unhandled.push(reason);
+  process.on("unhandledRejection", onUnhandled);
+  try {
+    const page = {
+      goto: async () => {},
+      url: () => "https://voice.google.com/landing",
+      waitForLoadState: async () => {},
+      waitForResponse: () =>
+        new Promise((resolve, reject) =>
+          setImmediate(() =>
+            reject(new Error("Target page, context or browser has been closed")),
+          ),
+        ),
+    };
+
+    await assert.rejects(
+      extractRecentMessages(page, { sinceMs: 60_000 }),
+      AuthenticationRequiredError,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+  }
 });
