@@ -54,6 +54,6 @@ export function printRecent(result, stream = process.stdout) {
     stream.write("More matching messages exist; increase --limit to include them.\n");
   }
   if (result.sourceTruncated) {
-    stream.write("The time window spans more than Google's 100-thread snapshot; results may be incomplete.\n");
+    stream.write("The time window spans more than the thread snapshot Google loaded; results may be incomplete.\n");
   }
 }
