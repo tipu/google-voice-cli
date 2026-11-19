@@ -7,6 +7,7 @@ const READ_ONLY_VOICE_ENDPOINTS = new Set([
   "/voice/v1/voiceclient/api2thread/get",
   "/voice/v1/voiceclient/api2thread/list",
   "/voice/v1/voiceclient/getnumberportinfo",
+  "/voice/v1/voiceclient/inbox/coldsync",
   "/voice/v1/voiceclient/numbertransfer/list",
   "/voice/v1/voiceclient/sipregisterinfo/get",
   "/voice/v1/voiceclient/threadinginfo/get",

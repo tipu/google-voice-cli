@@ -16,6 +16,12 @@ test("read-only guard allows the known thread read endpoints", () => {
     ),
     true,
   );
+  assert.equal(
+    isReadOnlyVoiceRequest(
+      "https://clients6.google.com/voice/v1/voiceclient/inbox/coldsync",
+    ),
+    true,
+  );
 });
 
 test("read-only guard rejects unknown and state-changing Voice endpoints", () => {

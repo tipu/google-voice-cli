@@ -2,6 +2,9 @@ import { VOICE_URL } from "./config.js";
 
 const MESSAGES_PATH = "messages";
 const MESSAGE_THREAD_SELECTOR = "gv-message-thread-list-item";
+const THREAD_LIST_PATH = "/voice/v1/voiceclient/api2thread/list";
+const COLD_SYNC_PATH = "/voice/v1/voiceclient/inbox/coldsync";
+const TEXT_FOLDER = 2;
 
 export class AuthenticationRequiredError extends Error {
   constructor() {
@@ -99,9 +102,8 @@ export async function extractRecentMessages(
 ) {
   const responsePromise = page.waitForResponse(
     (response) => {
-      if (!response.url().includes("/voice/v1/voiceclient/api2thread/list")) return false;
       try {
-        return firstThreadPageSize(response.request().postDataJSON()) !== null;
+        return textThreadPageSize(response) !== null;
       } catch {
         return false;
       }
@@ -111,8 +113,9 @@ export async function extractRecentMessages(
   responsePromise.catch(() => {});
   await navigateToMessages(page);
   const response = await responsePromise;
-  const pageSize = firstThreadPageSize(response.request().postDataJSON());
-  const payload = await response.json();
+  const pageSize = textThreadPageSize(response);
+  const body = await response.json();
+  const payload = response.url().includes(COLD_SYNC_PATH) ? [coldSyncTextThreads(body)] : body;
 
   const participants = await page.evaluate((itemSelector) => {
     const clean = (value) => value?.replace(/\s+/g, " ").trim() || null;
@@ -130,9 +133,31 @@ export async function extractRecentMessages(
   });
 }
 
+export function textThreadPageSize(response) {
+  const url = response.url();
+  if (url.includes(THREAD_LIST_PATH)) return firstThreadPageSize(response.request().postDataJSON());
+  if (url.includes(COLD_SYNC_PATH)) return coldSyncTextPageSize(response.request().postDataJSON());
+  return null;
+}
+
 export function firstThreadPageSize(request) {
-  if (!Array.isArray(request) || request[0] !== 2 || request[3] != null) return null;
+  if (!Array.isArray(request) || request[0] !== TEXT_FOLDER || request[3] != null) return null;
   return Number.isInteger(request[1]) && request[1] > 0 ? request[1] : null;
+}
+
+function textFolder(folders) {
+  if (!Array.isArray(folders)) return null;
+  return folders.find((folder) => Array.isArray(folder) && folder[0] === TEXT_FOLDER) ?? null;
+}
+
+export function coldSyncTextPageSize(request) {
+  const folder = textFolder(Array.isArray(request) ? request[0] : null);
+  return Number.isInteger(folder?.[1]) && folder[1] > 0 ? folder[1] : null;
+}
+
+export function coldSyncTextThreads(payload) {
+  const folder = textFolder(Array.isArray(payload) ? payload[0] : null);
+  return Array.isArray(folder?.[2]) ? folder[2] : [];
 }
 
 export function decodeRecentMessages(
