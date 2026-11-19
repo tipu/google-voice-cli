@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   AuthenticationRequiredError,
   decodeRecentMessages,
+  coldSyncTextPageSize,
+  coldSyncTextThreads,
   extractRecentMessages,
   firstThreadPageSize,
   isVoiceAppUrl,
@@ -130,4 +132,63 @@ test("extractRecentMessages reads a 20-thread first page and flags the truncated
   assert.equal(result.count, 20);
   assert.equal(result.messages[0].participant, "Person 0");
   assert.equal(result.sourceTruncated, true);
+});
+
+test("coldSyncTextPageSize reads the text folder page size from the cold sync request", () => {
+  const folders = [[1, 0, 0], [2, 100, 50], [3, 0, 0]];
+  assert.equal(coldSyncTextPageSize([folders, [1, 1, 1, 1, 0]]), 100);
+  assert.equal(coldSyncTextPageSize([[[1, 0, 0], [2, 0, 0]], [1, 1, 1, 1, 0]]), null);
+  assert.equal(coldSyncTextPageSize([[[1, 20, 15]], [1, 1, 1, 1, 0]]), null);
+  assert.equal(coldSyncTextPageSize(null), null);
+});
+
+test("coldSyncTextThreads returns only the text folder threads", () => {
+  const textThreads = [["t.1", 0, []]];
+  assert.deepEqual(coldSyncTextThreads([[[1, ""], [2, "cursor", textThreads], [3, ""]]]), textThreads);
+  assert.deepEqual(coldSyncTextThreads([[[1, ""], [3, ""]]]), []);
+  assert.deepEqual(coldSyncTextThreads(null), []);
+});
+
+test("extractRecentMessages reads the text folder from the cold sync and skips the mixed thread list", async () => {
+  const now = Date.parse("2026-11-19T20:00:00.000Z");
+  const message = (id, ageMinutes, direction, text) => [id, now - ageMinutes * 60_000, null, null, direction, null, null, null, null, text];
+  const textThreads = [
+    ["t.a", 0, [message("m1", 1, 10, "hello"), message("m2", 2, 11, "hi")]],
+    ["t.b", 0, [message("m3", 3, 10, "later")]],
+  ];
+  const mixedThreads = [["c.x", 0, [message("m9", 1, 10, "from the mixed folder")]], ...textThreads];
+  const page = {
+    evaluate: async () => ["Person A", "Person B"],
+    goto: async () => {},
+    url: () => "https://voice.google.com/u/0/messages",
+    waitForLoadState: async () => {},
+    waitForResponse: async (predicate) => {
+      const responses = [
+        {
+          json: async () => [mixedThreads],
+          request: () => ({ postDataJSON: () => [1, 20, 15, null, null, [null, 1, 1, 1]] }),
+          url: () => "https://clients6.google.com/voice/v1/voiceclient/api2thread/list?alt=protojson",
+        },
+        {
+          json: async () => [[[1, ""], [2, "cursor", textThreads], [3, ""]]],
+          request: () => ({ postDataJSON: () => [[[1, 0, 0], [2, 100, 50], [3, 0, 0]], [1, 1, 1, 1, 0]] }),
+          url: () => "https://clients6.google.com/voice/v1/voiceclient/inbox/coldsync?alt=protojson",
+        },
+      ];
+      return responses.find(predicate);
+    },
+  };
+
+  const result = await extractRecentMessages(page, { now, sinceMs: 24 * 60 * 60_000 });
+
+  assert.equal(result.count, 3);
+  assert.deepEqual(
+    result.messages.map(({ direction, participant, text }) => [direction, participant, text]),
+    [
+      ["incoming", "Person A", "hello"],
+      ["outgoing", "Person A", "hi"],
+      ["incoming", "Person B", "later"],
+    ],
+  );
+  assert.equal(result.sourceTruncated, false);
 });
