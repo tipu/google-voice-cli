@@ -90,6 +90,7 @@ gvoice read "Ada" --json
 | --- | --- | --- |
 | `GVOICE_PROFILE_DIR` | `~/.config/google-voice-cli/chrome` | Chrome profile directory used for the saved Google session. An absolute path is recommended. |
 | `GVOICE_CHROME_CHANNEL` | `chrome` | Playwright browser channel to launch. The selected channel must be installed locally. |
+| `GVOICE_CDP_URL` | none | DevTools endpoint of a running, signed-in Chrome, such as `http://127.0.0.1:9479`. The read commands open a tab in that Chrome instead of launching one, and leave the Chrome running. Use it when Google ends a session that a second Chrome process reuses. |
 
 For example:
 

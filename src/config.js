@@ -13,3 +13,7 @@ export function profileDirectory(env = process.env) {
 export function chromeChannel(env = process.env) {
   return env.GVOICE_CHROME_CHANNEL || "chrome";
 }
+
+export function cdpEndpoint(env = process.env) {
+  return env.GVOICE_CDP_URL || null;
+}
